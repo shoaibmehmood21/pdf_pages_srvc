@@ -1,42 +1,34 @@
-from fastapi import FastAPI, UploadFile, File
-from fastapi.responses import StreamingResponse
-from pypdf import PdfReader, PdfWriter
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import A4
-from io import BytesIO
-
-app = FastAPI(title="PDF N-Up Service")
-
 @app.post("/convert")
 async def convert_pdf(file: UploadFile = File(...)):
     input_bytes = await file.read()
     reader = PdfReader(BytesIO(input_bytes))
     writer = PdfWriter()
 
-    pages = reader.pages
-    width, height = A4
     cols = 2
     rows = 3
     per_page = cols * rows
 
-    for i in range(0, len(pages), per_page):
-        packet = BytesIO()
-        c = canvas.Canvas(packet, pagesize=A4)
-        subset = pages[i:i+per_page]
+    for i in range(0, len(reader.pages), per_page):
+        output_page = writer.add_blank_page(width=595, height=842)  # A4
 
-        for idx, page in enumerate(subset):
-            r = idx // cols
+        for idx, src_page in enumerate(reader.pages[i:i+per_page]):
+            scale_x = (595 / cols) / src_page.mediabox.width
+            scale_y = (842 / rows) / src_page.mediabox.height
+            scale = min(scale_x, scale_y)
+
+            src_page.scale_by(scale)
+
             col = idx % cols
-            x = col * (width / cols)
-            y = height - ((r + 1) * (height / rows))
+            row = idx // cols
 
-            page.scaleBy((width/cols) / page.mediabox.width)
-            page.mergeTranslatedPage(page, x, y)
+            x = col * (595 / cols)
+            y = 842 - ((row + 1) * (842 / rows))
 
-        c.save()
-        packet.seek(0)
-        new_reader = PdfReader(packet)
-        writer.add_page(new_reader.pages[0])
+            output_page.merge_translated_page(
+                src_page,
+                tx=x,
+                ty=y
+            )
 
     output = BytesIO()
     writer.write(output)
@@ -45,5 +37,7 @@ async def convert_pdf(file: UploadFile = File(...)):
     return StreamingResponse(
         output,
         media_type="application/pdf",
-        headers={"Content-Disposition": "attachment; filename=converted.pdf"}
+        headers={
+            "Content-Disposition": "attachment; filename=converted.pdf"
+        }
     )
