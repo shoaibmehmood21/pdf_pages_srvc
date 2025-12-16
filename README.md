@@ -1,14 +1,13 @@
-# PDF Pages Service with UI
+# PDF Pages Service with UI (Fixed)
 
-## Features
-- Upload PDF from browser
-- Converts to 6 pages per A4 (2x3 layout)
-- Returns downloadable PDF
-- Ready for Railway
+## What was fixed
+- Added app/__init__.py
+- Fixed uvicorn import path
+- Fixed StaticFiles absolute directory
 
-## Deploy
-- Push repo to GitHub
-- Railway → New Project → Deploy from GitHub
+## Run locally
+docker build -t pdf-pages .
+docker run -p 8000:8000 pdf-pages
 
-## URL
-- Open root URL to use UI
+## Railway
+Deploy directly from GitHub repo

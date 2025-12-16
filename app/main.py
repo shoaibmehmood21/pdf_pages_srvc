@@ -3,14 +3,21 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pypdf import PdfReader, PdfWriter
 from io import BytesIO
+import os
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 app = FastAPI(title="PDF Pages Service")
 
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
+app.mount(
+    "/static",
+    StaticFiles(directory=os.path.join(BASE_DIR, "static")),
+    name="static"
+)
 
 @app.get("/", response_class=HTMLResponse)
 def index():
-    with open("app/static/index.html", "r", encoding="utf-8") as f:
+    with open(os.path.join(BASE_DIR, "static", "index.html"), "r", encoding="utf-8") as f:
         return f.read()
 
 @app.post("/convert")
