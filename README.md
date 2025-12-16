@@ -1,15 +1,14 @@
-# PDF N-Up Service (6 pages per page)
+# PDF Pages Service with UI
 
 ## Features
-- Converts any PDF into 2x3 layout (6 pages per output page)
-- Handles 10+ pages (10 pages -> 2 output pages)
+- Upload PDF from browser
+- Converts to 6 pages per A4 (2x3 layout)
 - Returns downloadable PDF
-- Ready for Railway deployment
+- Ready for Railway
 
-## API
-POST /convert
-Form-data:
-- file: PDF
+## Deploy
+- Push repo to GitHub
+- Railway → New Project → Deploy from GitHub
 
-Returns:
-- application/pdf
+## URL
+- Open root URL to use UI

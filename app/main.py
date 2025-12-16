@@ -1,56 +1,45 @@
 from fastapi import FastAPI, UploadFile, File
-from fastapi.responses import StreamingResponse
-from pypdf import PdfReader, PdfWriter, Transformation
+from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
+from pypdf import PdfReader, PdfWriter
 from io import BytesIO
 
-app = FastAPI()
+app = FastAPI(title="PDF Pages Service")
 
-A4_WIDTH = 595
-A4_HEIGHT = 842
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+@app.get("/", response_class=HTMLResponse)
+def index():
+    with open("app/static/index.html", "r", encoding="utf-8") as f:
+        return f.read()
 
 @app.post("/convert")
 async def convert_pdf(file: UploadFile = File(...)):
     input_bytes = await file.read()
-
     reader = PdfReader(BytesIO(input_bytes))
     writer = PdfWriter()
 
-    cols = 2
-    rows = 3
+    A4_W, A4_H = 595, 842
+    cols, rows = 2, 3
     per_page = cols * rows
 
     for i in range(0, len(reader.pages), per_page):
-        output_page = writer.add_blank_page(
-            width=A4_WIDTH,
-            height=A4_HEIGHT
-        )
+        out_page = writer.add_blank_page(width=A4_W, height=A4_H)
 
-        subset = reader.pages[i:i + per_page]
+        for idx, src_page in enumerate(reader.pages[i:i+per_page]):
+            scale_x = (A4_W / cols) / src_page.mediabox.width
+            scale_y = (A4_H / rows) / src_page.mediabox.height
+            scale = min(scale_x, scale_y)
 
-        for idx, src_page in enumerate(subset):
+            src_page.scale_by(scale)
+
             col = idx % cols
             row = idx // cols
 
-            cell_width = A4_WIDTH / cols
-            cell_height = A4_HEIGHT / rows
+            x = col * (A4_W / cols)
+            y = A4_H - ((row + 1) * (A4_H / rows))
 
-            scale_x = cell_width / src_page.mediabox.width
-            scale_y = cell_height / src_page.mediabox.height
-            scale = min(scale_x, scale_y)
-
-            x = col * cell_width
-            y = A4_HEIGHT - ((row + 1) * cell_height)
-
-            transform = (
-                Transformation()
-                .scale(scale)
-                .translate(x, y)
-            )
-
-            output_page.merge_transformed_page(
-                src_page,
-                transform
-            )
+            out_page.merge_translated_page(src_page, x, y)
 
     output = BytesIO()
     writer.write(output)
@@ -59,7 +48,5 @@ async def convert_pdf(file: UploadFile = File(...)):
     return StreamingResponse(
         output,
         media_type="application/pdf",
-        headers={
-            "Content-Disposition": "attachment; filename=converted.pdf"
-        }
+        headers={"Content-Disposition": "attachment; filename=converted.pdf"}
     )
